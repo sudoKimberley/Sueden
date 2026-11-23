@@ -9,25 +9,25 @@
     canvas { display: block; width: 100vw; height: 100vh; }
     #ui {
       position: absolute; top: 12px; left: 12px; color: #fff;
-      background: rgba(180, 0, 20, 0.85); padding: 10px 14px; border-radius: 10px;
-      border: 2px solid #fff; pointer-events: none; font-size: 12px;
+      background: rgba(180, 0, 20, 0.9); padding: 14px 18px; border-radius: 12px;
+      border: 2px solid #fff; pointer-events: none; font-size: 16px; line-height: 1.4;
     }
     #chant {
       position: absolute; top: 12px; right: 12px;
-      background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px;
-      border-radius: 15px; font-size: 14px; font-weight: bold; border: 2px solid #dc052d;
+      background: rgba(0,0,0,0.85); color: #fff; padding: 12px 18px;
+      border-radius: 15px; font-size: 17px; font-weight: bold; border: 2px solid #dc052d;
       max-width: 45%; text-align: center;
     }
     .touch-pad {
       position: absolute; bottom: 20px; left: 20px; display: grid;
-      grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 48px); gap: 6px;
+      grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(2, 54px); gap: 6px;
     }
     .touch-actions {
-      position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px;
+      position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px;
     }
     .btn {
-      background: rgba(220, 5, 45, 0.85); color: white; border: 2px solid white;
-      border-radius: 12px; font-weight: bold; font-size: 15px;
+      background: rgba(220, 5, 45, 0.9); color: white; border: 2px solid white;
+      border-radius: 12px; font-weight: bold; font-size: 17px;
       display: flex; align-items: center; justify-content: center; user-select: none; cursor: pointer;
     }
     .btn:active { background: #ffd700; color: #111; }
@@ -36,18 +36,19 @@
 <body>
   <div id="ui">
     <b>🔴⚪ SÜDKURVE 3D</b><br>
-    PC: WASD, Space, F, E | Handy: Buttons
+    ▲/W: Vor | ▼/S: Zurück | ◀▶: Links/Rechts<br>
+    [Space]: Hüpfen | [F]: Fahne | [E]: Musik & Gesang
   </div>
-  <div id="chant">🎵 "STERN DES SÜDENS!" 🎵</div>
+  <div id="chant">🎵 Klick auf "Gesang" für Stadion-Sound! 🎵</div>
 
   <div class="touch-pad">
     <div></div><div class="btn" id="b-up">▲</div><div></div>
     <div class="btn" id="b-left">◀</div><div class="btn" id="b-down">▼</div><div class="btn" id="b-right">▶</div>
   </div>
   <div class="touch-actions">
-    <div class="btn" style="padding: 10px 14px;" id="b-chant">🎵 Gesang</div>
-    <div class="btn" style="padding: 10px 14px;" id="b-flag">🚩 Fahne</div>
-    <div class="btn" style="padding: 10px 14px;" id="b-jump">⬆️ Hüpfen</div>
+    <div class="btn" style="padding: 12px 16px;" id="b-chant">🎵 Gesang</div>
+    <div class="btn" style="padding: 12px 16px;" id="b-flag">🚩 Fahne</div>
+    <div class="btn" style="padding: 12px 16px;" id="b-jump">⬆️ Hüpfen</div>
   </div>
   <canvas id="c"></canvas>
 
@@ -56,6 +57,42 @@
     const ctx = canvas.getContext('2d');
     function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
     window.onresize = resize; resize();
+
+    // EINGEBAUTE STADION-MUSIK & TROMMELN (Web Audio)
+    let audioCtx = null;
+    function playTone(freq, time, dur, type = 'triangle', vol = 0.15) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, time);
+      gain.gain.setValueAtTime(vol, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time + dur);
+    }
+
+    function playStadiumChant(songIndex) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      // Stadion-Trommel (Bumm - Bumm - Klatsch!)
+      [0, 0.35, 0.7, 1.4, 1.75, 2.1].forEach((t, idx) => {
+        playTone(idx % 3 === 2 ? 220 : 85, now + t, 0.25, 'sine', 0.28);
+      });
+      // Stadion-Melodien (Fanfaren-Style)
+      const melodies = [
+        [[392, 0.3], [440, 0.3], [494, 0.4], [523, 0.5], [494, 0.3], [440, 0.3], [392, 0.6]],
+        [[523, 0.25], [523, 0.25], [659, 0.4], [523, 0.25], [659, 0.4], [784, 0.7]],
+        [[392, 0.3], [523, 0.3], [659, 0.3], [784, 0.5], [659, 0.3], [784, 0.7]]
+      ];
+      let t = now + 0.1;
+      melodies[songIndex % melodies.length].forEach(([f, d]) => {
+        playTone(f, t, d * 0.9, 'sawtooth', 0.08);
+        playTone(f / 2, t, d * 0.9, 'triangle', 0.12);
+        t += d;
+      });
+    }
 
     const tCount = 7, tDepth = 2.4, tHeight = 0.85, width = 32;
     const player = { x: 0, y: 3 * tHeight, z: 3 * tDepth, vx: 0, vy: 0, vz: 0, grounded: true, waving: false, say: "MIA SAN MIA!", sayT: 180, isPlayer: true, hasFlag: true, shirt: "#ffd700", phase: 0 };
@@ -77,14 +114,21 @@
       });
     }
     const keys = {};
-    function jump() { if (player.grounded) { player.vy = 0.24; player.grounded = false; } }
+    let songIdx = 0;
+    function jump() { if (player.grounded) { player.vy = 0.24; player.grounded = false; playTone(180, audioCtx ? audioCtx.currentTime : 0, 0.15, 'sine', 0.1); } }
     function toggleFlag() { player.waving = !player.waving; }
     function chant() {
-      const lines = ["🎵 STERN DES SÜDENS! 🎵", "🎵 SUPER BAYERN, HEY, HEY! 🎵", "🎵 STEHT AUF, WENN IHR BAYERN SEID! 🎵"];
-      document.getElementById('chant').innerText = lines[Math.floor(Math.random() * lines.length)];
-      player.say = "BAYERN!!"; player.sayT = 140;
+      const lines = [
+        "🎵 STERN DES SÜDENS, DU WIRST NIEMALS UNTERGEHN! 🎵",
+        "🎵 SUPER BAYERN, SUPER BAYERN, HEY, HEY! 🎵",
+        "🎵 STEHT AUF, WENN IHR BAYERN SEID! 🎵"
+      ];
+      document.getElementById('chant').innerText = lines[songIdx % lines.length];
+      playStadiumChant(songIdx);
+      songIdx++;
+      player.say("BAYERN!!"); player.sayT = 140;
       fans.forEach(f => {
-        if (!f.isPlayer && Math.random() > 0.35) {
+        if (!f.isPlayer && Math.random() > 0.3) {
           f.say = shouts[Math.floor(Math.random() * shouts.length)];
           f.sayT = 100 + Math.random() * 60;
           if (f.grounded) { f.vy = 0.18; f.grounded = false; }
@@ -152,9 +196,9 @@
       let mx = (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) - (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0);
       let mz = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0);
       if (mx || mz) {
-        const ang = Math.atan2(mx, mz) + camYaw;
-        player.vx += Math.sin(ang) * 0.035;
-        player.vz += Math.cos(ang) * 0.035;
+        const ang = Math.atan2(mx, mz) - camYaw;
+        player.vx += Math.sin(ang) * 0.04;
+        player.vz += Math.cos(ang) * 0.04;
       }
 
       player.vx *= 0.82; player.vz *= 0.82;
@@ -168,7 +212,6 @@
       ctx.fillStyle = "#16192b";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Rasen zeichnen
       const g1 = project(-25, 0, -25, camX, camY, camZ);
       const g2 = project(25, 0, -2, camX, camY, camZ);
       if (g1 && g2) {
@@ -176,7 +219,6 @@
         ctx.fillRect(0, Math.min(g1.sy, g2.sy), canvas.width, canvas.height);
       }
 
-      // Tribünenstufen zeichnen
       for (let i = tCount - 1; i >= 0; i--) {
         const sy = (i + 1) * tHeight, sz = i * tDepth;
         const pL = project(-17, sy, sz, camX, camY, camZ);
@@ -190,7 +232,6 @@
         }
       }
 
-      // Fans aktualisieren & nach Tiefe sortieren
       fans.forEach(f => {
         if (!f.isPlayer) {
           if (Math.random() < 0.01 && f.grounded) { f.vy = 0.16; f.grounded = false; }
@@ -215,33 +256,29 @@
 
       fans.filter(f => f.depth > 0).sort((a, b) => b.depth - a.depth).forEach(f => {
         const wave = Math.sin(time * 2 + f.phase) * 0.25;
-        // Beine, Torso, Schal, Kopf (Roblox-Blockstil)
         drawBox(f.x - 0.18, f.y, f.z, 0.3, 0.7, 0.3, "#1b263b", camX, camY, camZ);
         drawBox(f.x + 0.18, f.y, f.z, 0.3, 0.7, 0.3, "#1b263b", camX, camY, camZ);
         drawBox(f.x, f.y + 0.7, f.z, 0.75, 0.85, 0.4, f.shirt, camX, camY, camZ);
         drawBox(f.x, f.y + 1.52, f.z, 0.65, 0.16, 0.45, f.shirt === "#dc052d" ? "#ffffff" : "#dc052d", camX, camY, camZ);
         drawBox(f.x, f.y + 1.68, f.z, 0.5, 0.5, 0.5, "#f1c27d", camX, camY, camZ);
 
-        // Arme (hochreißen beim Winken/Fahne)
         const armY = (f.waving || f.hasFlag) ? f.y + 1.45 + Math.abs(wave) * 0.4 : f.y + 0.85 + wave * 0.2;
         drawBox(f.x - 0.52, armY, f.z, 0.25, 0.65, 0.25, "#f1c27d", camX, camY, camZ);
         drawBox(f.x + 0.52, armY, f.z, 0.25, 0.65, 0.25, "#f1c27d", camX, camY, camZ);
 
-        // Fahne schwenken
         if (f.hasFlag) {
           const fx = f.x + 0.55 + Math.sin(time * 2.5 + f.phase) * 0.45;
           drawBox(fx, f.y + 1.6, f.z, 0.06, 2.2, 0.06, "#eeeeee", camX, camY, camZ);
           drawBox(fx + 0.55, f.y + 2.9, f.z, 1.1, 0.75, 0.06, f.isPlayer ? "#dc052d" : "#ffffff", camX, camY, camZ);
         }
 
-        // Sprechblase
         if (f.sayT > 0 && f.say) {
           const sp = project(f.x, f.y + 2.45, f.z, camX, camY, camZ);
           if (sp && sp.scale > 15) {
-            ctx.font = `bold ${Math.max(10, Math.min(18, sp.scale * 0.28))}px sans-serif`;
+            ctx.font = `bold ${Math.max(12, Math.min(20, sp.scale * 0.3))}px sans-serif`;
             const tw = ctx.measureText(f.say).width + 14;
             ctx.fillStyle = "rgba(255,255,255,0.92)";
-            ctx.fillRect(sp.sx - tw / 2, sp.sy - 16, tw, 22);
+            ctx.fillRect(sp.sx - tw / 2, sp.sy - 16, tw, 24);
             ctx.fillStyle = "#dc052d";
             ctx.textAlign = "center";
             ctx.fillText(f.say, sp.sx, sp.sy);
