@@ -124,7 +124,7 @@
     }
 
     function project(x, y, z, camX, camY, camZ) {
-      const dx = x - camX, dy = y - camY, dz = z - camZ;
+      const dx = x - camX, dy = y - camY, dz = camZ - z;
       const cos = Math.cos(-camYaw), sin = Math.sin(-camYaw);
       const rx = dx * cos - dz * sin;
       const rz = dx * sin + dz * cos;
