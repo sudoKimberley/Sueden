@@ -10,12 +10,12 @@
     #ui {
       position: absolute; top: 12px; left: 12px; color: #fff;
       background: rgba(180, 0, 20, 0.9); padding: 14px 18px; border-radius: 12px;
-      border: 2px solid #fff; pointer-events: none; font-size: 16px; line-height: 1.4;
+      border: 2px solid #fff; pointer-events: none; font-size: 15px; line-height: 1.4;
     }
     #chant {
       position: absolute; top: 12px; right: 12px;
       background: rgba(0,0,0,0.85); color: #fff; padding: 12px 18px;
-      border-radius: 15px; font-size: 17px; font-weight: bold; border: 2px solid #dc052d;
+      border-radius: 15px; font-size: 16px; font-weight: bold; border: 2px solid #dc052d;
       max-width: 45%; text-align: center;
     }
     .touch-pad {
@@ -36,17 +36,17 @@
 <body>
   <div id="ui">
     <b>🔴⚪ SÜDKURVE 3D</b><br>
-    ▲/W: Vor | ▼/S: Zurück | ◀▶: Links/Rechts<br>
-    [Space]: Hüpfen | [F]: Fahne | [E]: Musik & Gesang
+    ▲▼◀▶ / WASD: Laufen | Maus ziehen: Drehen<br>
+    [Space]: Hüpfen | [F]: Fahne | [E]: Stadion-Chor
   </div>
-  <div id="chant">🎵 Klick auf "Gesang" für Stadion-Sound! 🎵</div>
+  <div id="chant">📣 Klick auf "Gesang" für echten Stadion-Chor!</div>
 
   <div class="touch-pad">
     <div></div><div class="btn" id="b-up">▲</div><div></div>
     <div class="btn" id="b-left">◀</div><div class="btn" id="b-down">▼</div><div class="btn" id="b-right">▶</div>
   </div>
   <div class="touch-actions">
-    <div class="btn" style="padding: 12px 16px;" id="b-chant">🎵 Gesang</div>
+    <div class="btn" style="padding: 12px 16px;" id="b-chant">📣 Gesang</div>
     <div class="btn" style="padding: 12px 16px;" id="b-flag">🚩 Fahne</div>
     <div class="btn" style="padding: 12px 16px;" id="b-jump">⬆️ Hüpfen</div>
   </div>
@@ -58,39 +58,63 @@
     function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
     window.onresize = resize; resize();
 
-    // EINGEBAUTE STADION-MUSIK & TROMMELN (Web Audio)
+    // ECHTER STADION-CHOR, PAUKE & PUBLIKUMSJUBEL
     let audioCtx = null;
-    function playTone(freq, time, dur, type = 'triangle', vol = 0.15) {
+    function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, time);
-      gain.gain.setValueAtTime(vol, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(time); osc.stop(time + dur);
     }
 
-    function playStadiumChant(songIndex) {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playDrumAndCrowd() {
+      initAudio();
       const now = audioCtx.currentTime;
-      // Stadion-Trommel (Bumm - Bumm - Klatsch!)
-      [0, 0.35, 0.7, 1.4, 1.75, 2.1].forEach((t, idx) => {
-        playTone(idx % 3 === 2 ? 220 : 85, now + t, 0.25, 'sine', 0.28);
+
+      // 1. Stadion-Jubel & Klatschen (Rausch-Generator)
+      const bufferSize = audioCtx.sampleRate * 3.5;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+      const whiteNoise = audioCtx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 900;
+      const crowdGain = audioCtx.createGain();
+      crowdGain.gain.setValueAtTime(0.01, now);
+      crowdGain.gain.linearRampToValueAtTime(0.22, now + 0.4);
+      crowdGain.gain.exponentialRampToValueAtTime(0.001, now + 3.4);
+      whiteNoise.connect(filter); filter.connect(crowdGain); crowdGain.connect(audioCtx.destination);
+      whiteNoise.start(now);
+
+      // 2. Tiefe Ultra-Pauke (BUMM - BUMM - KLATSCH!)
+      [0, 0.45, 0.9, 1.8, 2.25, 2.7].forEach((t, idx) => {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const isClap = idx % 3 === 2;
+        osc.type = isClap ? 'square' : 'sine';
+        osc.frequency.setValueAtTime(isClap ? 180 : 110, now + t);
+        if (!isClap) osc.frequency.exponentialRampToValueAtTime(38, now + t + 0.3);
+        g.gain.setValueAtTime(isClap ? 0.15 : 0.55, now + t);
+        g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.35);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(now + t); osc.stop(now + t + 0.36);
       });
-      // Stadion-Melodien (Fanfaren-Style)
-      const melodies = [
-        [[392, 0.3], [440, 0.3], [494, 0.4], [523, 0.5], [494, 0.3], [440, 0.3], [392, 0.6]],
-        [[523, 0.25], [523, 0.25], [659, 0.4], [523, 0.25], [659, 0.4], [784, 0.7]],
-        [[392, 0.3], [523, 0.3], [659, 0.3], [784, 0.5], [659, 0.3], [784, 0.7]]
-      ];
-      let t = now + 0.1;
-      melodies[songIndex % melodies.length].forEach(([f, d]) => {
-        playTone(f, t, d * 0.9, 'sawtooth', 0.08);
-        playTone(f / 2, t, d * 0.9, 'triangle', 0.12);
-        t += d;
+    }
+
+    function crowdChantSpeech(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      // Mehrere Stimmen leicht versetzt für echten Kurven-Chor!
+      [0.85, 1.05, 1.25].forEach((pitch, i) => {
+        setTimeout(() => {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'de-DE';
+          u.pitch = pitch;
+          u.rate = 0.95;
+          u.volume = 1.0;
+          window.speechSynthesis.speak(u);
+        }, i * 70);
       });
     }
 
@@ -115,23 +139,27 @@
     }
     const keys = {};
     let songIdx = 0;
-    function jump() { if (player.grounded) { player.vy = 0.24; player.grounded = false; playTone(180, audioCtx ? audioCtx.currentTime : 0, 0.15, 'sine', 0.1); } }
+    function jump() { if (player.grounded) { player.vy = 0.24; player.grounded = false; } }
     function toggleFlag() { player.waving = !player.waving; }
     function chant() {
-      const lines = [
-        "🎵 STERN DES SÜDENS, DU WIRST NIEMALS UNTERGEHN! 🎵",
-        "🎵 SUPER BAYERN, SUPER BAYERN, HEY, HEY! 🎵",
-        "🎵 STEHT AUF, WENN IHR BAYERN SEID! 🎵"
+      const songs = [
+        { banner: "📣 STERN DES SÜDENS, DU WIRST NIEMALS UNTERGEHN!", voice: "Stern des Südens, du wirst niemals untergehn!" },
+        { banner: "📣 SUPER BAYERN, SUPER BAYERN, HEY, HEY!", voice: "Super Bayern, Super Bayern, Hey, Hey!" },
+        { banner: "📣 STEHT AUF, WENN IHR BAYERN SEID!", voice: "Steht auf, wenn ihr Bayern seid!" },
+        { banner: "📣 MIA SAN MIA! OLE, OLE, OLA!", voice: "Mia san mia! Ole, ole, ola!" }
       ];
-      document.getElementById('chant').innerText = lines[songIdx % lines.length];
-      playStadiumChant(songIdx);
+      const current = songs[songIdx % songs.length];
+      document.getElementById('chant').innerText = current.banner;
+      playDrumAndCrowd();
+      crowdChantSpeech(current.voice);
       songIdx++;
-      player.say("BAYERN!!"); player.sayT = 140;
+
+      player.say("BAYERN!!"); player.sayT = 160;
       fans.forEach(f => {
-        if (!f.isPlayer && Math.random() > 0.3) {
+        if (!f.isPlayer && Math.random() > 0.25) {
           f.say = shouts[Math.floor(Math.random() * shouts.length)];
-          f.sayT = 100 + Math.random() * 60;
-          if (f.grounded) { f.vy = 0.18; f.grounded = false; }
+          f.sayT = 120 + Math.random() * 60;
+          if (f.grounded) { f.vy = 0.2; f.grounded = false; }
         }
       });
     }
@@ -158,7 +186,7 @@
     let camYaw = 0, drag = false, lastX = 0;
     canvas.onpointerdown = e => { drag = true; lastX = e.clientX; };
     onpointerup = () => drag = false;
-    onpointermove = e => { if (drag) { camYaw -= (e.clientX - lastX) * 0.007; lastX = e.clientX; } };
+    onpointermove = e => { if (drag) { camYaw -= (e.clientX - lastX) * 0.008; lastX = e.clientX; } };
 
     function groundY(z) {
       const tr = Math.floor((z + tDepth / 2) / tDepth);
@@ -197,8 +225,8 @@
       let mz = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0);
       if (mx || mz) {
         const ang = Math.atan2(mx, mz) - camYaw;
-        player.vx += Math.sin(ang) * 0.04;
-        player.vz += Math.cos(ang) * 0.04;
+        player.vx += Math.sin(ang) * 0.045;
+        player.vz += Math.cos(ang) * 0.045;
       }
 
       player.vx *= 0.82; player.vz *= 0.82;
