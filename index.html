@@ -130,7 +130,7 @@
       const rz = dx * sin + dz * cos;
       if (rz <= 0.4) return null;
       const fov = Math.min(canvas.width, canvas.height) * 0.85;
-      return { sx: canvas.width / 2 + (rx / rz) * fov, sy: canvas.height / 2 - ((dy - 1.5) / rz) * fov, scale: fov / rz, depth: rz };
+      return { sx: canvas.width / 2 + (rx / rz) * fov, sy: canvas.height / 2 - ((dy + 2.2) / rz) * fov, scale: fov / rz, depth: rz };
     }
 
     function drawBox(x, y, z, w, h, d, color, camX, camY, camZ) {
@@ -163,7 +163,7 @@
 
       const camX = player.x + Math.sin(camYaw) * 8.5;
       const camZ = player.z + Math.cos(camYaw) * 8.5;
-      const camY = player.y + 3.8;
+      const camY = player.y + 4.5;
 
       ctx.fillStyle = "#16192b";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
