@@ -37,9 +37,9 @@
   <div id="ui">
     <b>🔴⚪ SÜDKURVE 3D</b><br>
     ▲▼◀▶ / WASD: Laufen | Maus ziehen: Drehen<br>
-    [Space]: Hüpfen | [F]: Fahne | [E]: Stadion-Chor
+    [Space]: Hüpfen | [F]: Fahne | [E]: Stadion-Sound
   </div>
-  <div id="chant">📣 Klick auf "Gesang" für echten Stadion-Chor!</div>
+  <div id="chant">📣 Klick auf "Gesang" für Stadion-Sound!</div>
 
   <div class="touch-pad">
     <div></div><div class="btn" id="b-up">▲</div><div></div>
@@ -58,17 +58,13 @@
     function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
     window.onresize = resize; resize();
 
-    // ECHTER STADION-CHOR, PAUKE & PUBLIKUMSJUBEL
-   
-    // ECHTE STADION-ORGEL, FANFARE & TROMMELWIRBEL (Mehrstimmig!)
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    function playNote(freq, start, dur, vol = 0.14) {
-      // 3 leicht verstimmte Oszillatoren = fetter Stadion-Chor / Stadion-Orgel Klang!
+    function playNote(freq, start, dur, vol = 0.12) {
       [-4, 0, 4].forEach(detune => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -89,11 +85,10 @@
       });
     }
 
-    function playDrumAndCrowd() {
+    function playStadiumSound() {
       initAudio();
       const now = audioCtx.currentTime;
 
-      // 1. Langes Stadion-Rauschen (Jubel der 75.000 Fans)
       const bufferSize = audioCtx.sampleRate * 4.5;
       const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
@@ -111,7 +106,6 @@
       noise.connect(filter); filter.connect(crowdGain); crowdGain.connect(audioCtx.destination);
       noise.start(now);
 
-      // 2. Satte Stadion-Trommel (BUMM - BUMM - KLATSCH!)
       [0, 0.4, 0.8, 1.6, 2.0, 2.4, 3.2, 3.6].forEach((t, idx) => {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -124,24 +118,62 @@
         osc.connect(g); g.connect(audioCtx.destination);
         osc.start(now + t); osc.stop(now + t + 0.34);
       });
-    }
 
-    function crowdChantSpeech() {
-      initAudio();
-      const now = audioCtx.currentTime;
-      // Fette Stadion-Melodie (Ole, Ole, Ola + Fanfare)
       const melody = [
         [261.6, 0.25], [329.6, 0.25], [392.0, 0.45], [329.6, 0.25], [392.0, 0.45], [523.3, 0.8],
         [493.9, 0.25], [440.0, 0.25], [392.0, 0.45], [440.0, 0.25], [493.9, 0.45], [523.3, 0.9]
       ];
       let t = now + 0.1;
       melody.forEach(([freq, dur]) => {
-        playNote(freq, t, dur * 0.95, 0.11);       // Hauptstimme
-        playNote(freq * 0.5, t, dur * 0.95, 0.14); // Tiefer Stadion-Bass
+        playNote(freq, t, dur * 0.95, 0.11);
+        playNote(freq * 0.5, t, dur * 0.95, 0.14);
         t += dur;
       });
     }
 
+    const tCount = 7, tDepth = 2.4, tHeight = 0.85, width = 32;
+    const player = { x: 0, y: 3 * tHeight, z: 3 * tDepth, vx: 0, vy: 0, vz: 0, grounded: true, waving: false, say: "MIA SAN MIA!", sayT: 180, isPlayer: true, hasFlag: true, shirt: "#ffd700", phase: 0 };
+
+    const fans = [player];
+    const shouts = ["OLE OLE!", "BAYERN!", "HÜPFEN!", "SUPER BAYERN!", "TOR!", "HEY!"];
+    for (let i = 0; i < 48; i++) {
+      const tr = Math.floor(Math.random() * tCount);
+      fans.push({
+        x: (Math.random() - 0.5) * (width - 3),
+        y: (tr + 1) * tHeight,
+        z: tr * tDepth + (Math.random() - 0.5) * 0.8,
+        vx: 0, vy: 0, vz: 0, grounded: true,
+        waving: Math.random() < 0.3,
+        hasFlag: Math.random() < 0.25,
+        shirt: Math.random() > 0.25 ? "#dc052d" : "#ffffff",
+        say: "", sayT: 0, isPlayer: false,
+        phase: Math.random() * 10
+      });
+    }
+    const keys = {};
+    let songIdx = 0;
+    function jump() { if (player.grounded) { player.vy = 0.24; player.grounded = false; } }
+    function toggleFlag() { player.waving = !player.waving; }
+    function chant() {
+      const songs = [
+        "📣 STERN DES SÜDENS, DU WIRST NIEMALS UNTERGEHN!",
+        "📣 SUPER BAYERN, SUPER BAYERN, HEY, HEY!",
+        "📣 STEHT AUF, WENN IHR BAYERN SEID!",
+        "📣 MIA SAN MIA! OLE, OLE, OLA!"
+      ];
+      document.getElementById('chant').innerText = songs[songIdx % songs.length];
+      playStadiumSound();
+      songIdx++;
+
+      player.say("BAYERN!!"); player.sayT = 160;
+      fans.forEach(f => {
+        if (!f.isPlayer && Math.random() > 0.25) {
+          f.say = shouts[Math.floor(Math.random() * shouts.length)];
+          f.sayT = 120 + Math.random() * 60;
+          if (f.grounded) { f.vy = 0.2; f.grounded = false; }
+        }
+      });
+    }
 
     onkeydown = e => {
       keys[e.code] = true;
